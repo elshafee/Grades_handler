@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grades Tool — Dev by ESSIC</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#F0EDE8;--surface:#FAFAF8;--surface2:#F2F0EC;
+  --border:#DDD9D2;--border2:#C8C4BC;
+  --text:#1A1917;--text2:#6B6760;--text3:#9E9B96;
+  --accent:#1B4FD8;--accent-bg:#EEF2FF;--accent-text:#1B4FD8;
+  --purple:#7C3AED;--purple-bg:#F5F3FF;
+  --success:#166534;--success-bg:#DCFCE7;
+  --warn:#92400E;--warn-bg:#FEF3C7;
+  --danger:#991B1B;--danger-bg:#FEE2E2;
+  --radius:10px;--radius-sm:6px;
+  --mono:'IBM Plex Mono',monospace;--sans:'Inter',sans-serif;
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* ── SPLASH ── */
+#splash{
+  position:fixed;inset:0;z-index:9999;
+  background:#0F0E0D;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;
+  transition:opacity 0.5s ease, visibility 0.5s ease;
+}
+#splash.hidden{opacity:0;visibility:hidden;pointer-events:none;}
+.splash-logo{
+  width:72px;height:72px;background:var(--accent);border-radius:18px;
+  display:grid;place-items:center;
+  box-shadow:0 0 0 0 rgba(27,79,216,0.4);
+  animation:pulse 2s infinite;
+}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(27,79,216,0.4);}50%{box-shadow:0 0 0 16px rgba(27,79,216,0);}}
+.splash-title{font-size:26px;font-weight:700;color:#fff;letter-spacing:-0.02em;}
+.splash-sub{font-size:14px;color:#6B7280;font-family:var(--mono);}
+.splash-bar-wrap{width:220px;height:3px;background:#2A2927;border-radius:99px;overflow:hidden;}
+.splash-bar{height:100%;width:0%;background:var(--accent);border-radius:99px;transition:width 0.05s linear;}
+
+/* ── NAV TABS ── */
+#app{opacity:0;transition:opacity 0.4s ease;}
+#app.visible{opacity:1;}
+header{background:var(--text);color:#fff;padding:0 40px;display:flex;align-items:center;gap:0;}
+.header-brand{display:flex;align-items:center;gap:12px;padding:16px 0;margin-right:32px;}
+.logo-mark{width:32px;height:32px;background:var(--accent);border-radius:8px;display:grid;place-items:center;flex-shrink:0;}
+.header-brand h1{font-size:14px;font-weight:600;letter-spacing:-0.01em;}
+.header-brand p{font-size:11px;color:#9CA3AF;margin-top:1px;}
+.nav-tabs{display:flex;align-items:stretch;gap:0;height:100%;}
+.nav-tab{
+  padding:0 22px;height:60px;display:flex;align-items:center;gap:8px;
+  font-size:13px;font-weight:500;color:#9CA3AF;cursor:pointer;
+  border-bottom:2px solid transparent;transition:color 0.15s,border-color 0.15s;
+  user-select:none;white-space:nowrap;
+}
+.nav-tab:hover{color:#fff;}
+.nav-tab.active{color:#fff;border-bottom-color:var(--accent);}
+.nav-tab svg{flex-shrink:0;}
+
+/* ── PAGES ── */
+.page{display:none;}
+.page.active{display:block;}
+main{max-width:900px;margin:0 auto;padding:36px 24px 80px;}
+.section-label{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px;}
+
+/* ── DROP ZONES ── */
+.drop-zone{border:1.5px dashed var(--border2);border-radius:var(--radius);padding:32px 16px;text-align:center;cursor:pointer;transition:background 0.15s,border-color 0.15s;background:var(--surface2);}
+.drop-zone:hover,.drop-zone.over{background:var(--accent-bg);border-color:var(--accent);}
+.drop-zone.loaded{background:var(--success-bg);border-color:#86EFAC;border-style:solid;}
+.drop-zone input{display:none;}
+.drop-icon{width:40px;height:40px;border:1px solid var(--border);border-radius:9px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:10px;background:var(--surface);}
+.drop-zone.loaded .drop-icon{background:var(--success-bg);border-color:#86EFAC;}
+.drop-zone h2{font-size:14px;font-weight:600;margin-bottom:3px;}
+.drop-zone p{font-size:12px;color:var(--text2);}
+.loaded-name{font-size:12px;font-family:var(--mono);color:var(--success);margin-top:6px;font-weight:500;}
+
+/* ── FILE PILL ── */
+.file-pill{display:none;align-items:center;gap:10px;padding:10px 14px;background:var(--accent-bg);border:1px solid #BDD0FF;border-radius:var(--radius-sm);margin-top:12px;font-size:13px;font-weight:500;color:var(--accent-text);}
+.file-pill.show{display:flex;}
+.file-pill button{margin-left:auto;background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;line-height:1;padding:0 2px;}
+.file-pill button:hover{color:var(--danger);}
+
+/* ── BYLAW ── */
+.bylaw-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.bylaw-option{display:flex;flex-direction:column;gap:6px;padding:14px;background:var(--surface2);border:2px solid var(--border);border-radius:var(--radius);cursor:pointer;user-select:none;transition:border-color 0.15s,background 0.15s;}
+.bylaw-option:hover{border-color:var(--border2);background:#ECEAE5;}
+.bylaw-option.selected{border-color:var(--accent);background:var(--accent-bg);}
+.bylaw-option input[type=radio]{display:none;}
+.bylaw-badge{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:500;padding:2px 7px;background:var(--text);color:#fff;border-radius:4px;width:fit-content;}
+.bylaw-option.selected .bylaw-badge{background:var(--accent);}
+.bylaw-title{font-size:14px;font-weight:600;}
+.bylaw-desc{font-size:12px;color:var(--text2);}
+.bylaw-header{font-size:10px;font-family:var(--mono);color:var(--text3);margin-top:4px;line-height:1.5;border-top:1px solid var(--border);padding-top:8px;}
+.bylaw-option.selected .bylaw-header{border-color:#BDD0FF;}
+
+/* ── CONFIG GRID ── */
+.config-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.config-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;transition:background 0.12s;}
+.config-item:hover{background:#ECEAE5;}
+.config-item input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;}
+.config-item .col-name{font-size:13px;font-weight:500;}
+.config-item .col-sub{font-size:11px;color:var(--text3);font-family:var(--mono);}
+
+/* ── DOMAIN ROW ── */
+.domain-row{display:flex;align-items:center;border:1px solid var(--border2);border-radius:var(--radius-sm);overflow:hidden;background:var(--surface);}
+.domain-prefix{padding:9px 12px;background:var(--surface2);font-size:13px;color:var(--text2);border-right:1px solid var(--border);white-space:nowrap;font-family:var(--mono);}
+.domain-row input{border:none;outline:none;padding:9px 12px;font-size:13px;font-family:var(--mono);flex:1;background:var(--surface);color:var(--text);}
+
+/* ── BUTTONS ── */
+.primary-btn{width:100%;padding:12px;color:#fff;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;letter-spacing:-0.01em;transition:opacity 0.15s,transform 0.1s;display:flex;align-items:center;justify-content:center;gap:8px;}
+.primary-btn:hover:not(:disabled){opacity:0.88;}
+.primary-btn:active:not(:disabled){transform:scale(0.99);}
+.primary-btn:disabled{opacity:0.35;cursor:not-allowed;}
+.btn-blue{background:var(--accent);}
+.btn-purple{background:var(--purple);}
+.log-line{font-size:12px;font-family:var(--mono);color:var(--text2);margin-top:10px;min-height:18px;text-align:center;}
+.log-line.error{color:var(--danger);}
+
+/* ── RESULTS / SUMMARY ── */
+#results-conv,#results-check{display:none;}
+.summary-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.summary-chip{padding:9px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px;}
+.chip-success{background:var(--success-bg);color:var(--success);}
+.chip-warn{background:var(--warn-bg);color:var(--warn);}
+.chip-danger{background:var(--danger-bg);color:var(--danger);}
+.chip-accent{background:var(--accent-bg);color:var(--accent-text);}
+.results-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.results-header h3{font-size:14px;font-weight:600;}
+.download-all-btn{font-size:12px;font-weight:500;padding:6px 12px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);cursor:pointer;color:var(--text);transition:background 0.12s;}
+.download-all-btn:hover{background:var(--surface2);}
+.result-row{display:flex;align-items:center;gap:12px;padding:11px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);margin-bottom:8px;}
+.result-icon{width:34px;height:34px;flex-shrink:0;background:var(--success-bg);border-radius:8px;display:grid;place-items:center;}
+.result-name{font-size:13px;font-weight:500;flex:1;}
+.result-count{font-size:11px;font-family:var(--mono);color:var(--text2);background:var(--surface2);border:1px solid var(--border);padding:3px 8px;border-radius:4px;}
+.dl-btn{padding:6px 12px;background:var(--text);color:#fff;border:none;border-radius:var(--radius-sm);font-size:12px;font-weight:500;cursor:pointer;transition:opacity 0.12s;white-space:nowrap;}
+.dl-btn:hover{opacity:0.8;}
+
+/* ── CHECKER specific ── */
+.upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.out-files-list{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
+.out-file-row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--success-bg);border:1px solid #86EFAC;border-radius:var(--radius-sm);font-size:13px;}
+.out-file-row span{flex:1;font-family:var(--mono);font-size:12px;color:var(--success);}
+.out-file-row button{background:none;border:none;cursor:pointer;color:var(--text3);font-size:15px;padding:0 2px;}
+.out-file-row button:hover{color:var(--danger);}
+.add-more-btn{margin-top:10px;width:100%;padding:9px;background:var(--surface2);border:1.5px dashed var(--border2);border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;color:var(--text2);transition:background 0.12s,border-color 0.12s;}
+.add-more-btn:hover{background:var(--accent-bg);border-color:var(--accent);color:var(--accent);}
+.report-block{margin-bottom:20px;}
+.report-title{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.report-title .file-badge{font-family:var(--mono);font-size:11px;font-weight:500;padding:3px 10px;background:var(--text);color:#fff;border-radius:4px;}
+.report-title h3{font-size:14px;font-weight:600;}
+.report-title .status-pill{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;margin-left:auto;}
+.pill-ok{background:var(--success-bg);color:var(--success);}
+.pill-issues{background:var(--danger-bg);color:var(--danger);}
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-sm);}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{background:var(--surface2);padding:9px 12px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text2);border-bottom:1px solid var(--border);white-space:nowrap;}
+tbody td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:var(--surface2);}
+.td-code{font-family:var(--mono);font-size:12px;}
+.td-val{font-family:var(--mono);font-size:13px;font-weight:500;}
+.val-missing{color:var(--text3);font-style:italic;}
+.badge-match{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--success-bg);color:var(--success);}
+.badge-diff{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--danger-bg);color:var(--danger);}
+.badge-missing{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--warn-bg);color:var(--warn);}
+.badge-extra{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--accent-bg);color:var(--accent-text);}
+.filter-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.filter-btn{font-size:12px;font-weight:500;padding:5px 12px;border:1px solid var(--border2);border-radius:20px;background:var(--surface);cursor:pointer;color:var(--text2);transition:background 0.12s,border-color 0.12s,color 0.12s;}
+.filter-btn:hover{border-color:var(--purple);color:var(--purple);}
+.filter-btn.active{background:var(--purple);border-color:var(--purple);color:#fff;}
+.export-btn{font-size:12px;font-weight:500;padding:5px 12px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);cursor:pointer;color:var(--text);transition:background 0.12s;margin-left:auto;}
+.export-btn:hover{background:var(--surface2);}
+.empty-state{text-align:center;padding:24px;color:var(--text3);font-size:13px;}
+.mode-pick{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;}
+.mode-card{flex:1;min-width:160px;display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--surface2);border:2px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;}
+.mode-card.selected{background:var(--accent-bg);border-color:var(--accent);}
+.mode-card input[type=radio]{width:15px;height:15px;accent-color:var(--purple);cursor:pointer;flex-shrink:0;}
+.mode-card .mc-title{font-size:13px;font-weight:600;}
+.mode-card .mc-sub{font-size:11px;color:var(--text2);font-family:var(--mono);}
+
+@media(max-width:600px){
+  header{padding:0 16px;}
+  .nav-tab{padding:0 14px;font-size:12px;}
+  main{padding:24px 14px 60px;}
+  .upload-grid,.bylaw-grid,.config-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="splash-logo">
+    <svg width="34" height="34" fill="none" viewBox="0 0 34 34">
+      <rect x="4" y="4" width="11" height="11" rx="2.5" fill="#fff"/>
+      <rect x="19" y="4" width="11" height="11" rx="2.5" fill="#fff" opacity=".6"/>
+      <rect x="4" y="19" width="11" height="11" rx="2.5" fill="#fff" opacity=".6"/>
+      <rect x="19" y="19" width="11" height="11" rx="2.5" fill="#fff" opacity=".35"/>
+    </svg>
+  </div>
+  <div style="text-align:center;">
+    <div class="splash-title">Horus University Grades Tool</div>
+    <div class="splash-sub">Developed by ESSIC</div>
+  </div>
+  <div class="splash-bar-wrap"><div class="splash-bar" id="splash-bar"></div></div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header>
+    <div class="header-brand">
+      <div class="logo-mark">
+        <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
+          <rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.2" fill="#fff"/>
+          <rect x="9" y="1.5" width="5.5" height="5.5" rx="1.2" fill="#fff" opacity=".6"/>
+          <rect x="1.5" y="9" width="5.5" height="5.5" rx="1.2" fill="#fff" opacity=".6"/>
+          <rect x="9" y="9" width="5.5" height="5.5" rx="1.2" fill="#fff" opacity=".35"/>
+        </svg>
+      </div>
+      <div>
+        <h1>Horus Grades Tool</h1>
+        <p>Developed by ESSIC</p>
+      </div>
+    </div>
+    <nav class="nav-tabs">
+      <div class="nav-tab active" data-page="conv">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/></svg>
+        Converter
+      </div>
+      <div class="nav-tab" data-page="check">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Checker
+      </div>
+    </nav>
+  </header>
+
+  <!-- ══════════════════ CONVERTER PAGE ══════════════════ -->
+  <div class="page active" id="page-conv">
+    <main>
+      <p class="section-label">Step 1 — Upload your File</p>
+      <div class="card" style="padding:20px;">
+        <div class="drop-zone" id="conv-drop" onclick="document.getElementById('conv-file').click()">
+          <input type="file" id="conv-file" accept=".xlsx,.xls">
+          <div class="drop-icon">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <h2>Drop your Excel file here</h2>
+          <p>or click to browse — .xlsx / .xls</p>
+        </div>
+        <div class="file-pill" id="conv-pill">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span id="conv-file-name">—</span>
+          <button onclick="convClearFile()">&#x2715;</button>
+        </div>
+      </div>
+
+      <p class="section-label">Step 2 — Select Bylaw</p>
+      <div class="card" style="padding:20px;">
+        <div class="bylaw-grid" id="bylaw-selector">
+          <label class="bylaw-option selected" for="bylaw2025">
+            <input type="radio" name="bylaw" id="bylaw2025" value="2025" checked>
+            <div class="bylaw-badge">2025</div>
+            <div class="bylaw-title">Bylaw 2025</div>
+            <div class="bylaw-desc">Midterm · Final Term · Class Work · Exp./Oral</div>
+            <div class="bylaw-header">Student · Status · Code · Course · Midterm · Final Term · Class Work · Exp./Oral · Total</div>
+          </label>
+          <label class="bylaw-option" for="bylaw2018">
+            <input type="radio" name="bylaw" id="bylaw2018" value="2018">
+            <div class="bylaw-badge">2018</div>
+            <div class="bylaw-title">Bylaw 2018</div>
+            <div class="bylaw-desc">Quiz · Midterm · Final Term · Activity · Oral · Course Work</div>
+            <div class="bylaw-header">Student · Status · Code · Course · Quiz · Midterm · Final Term · Activity · Oral · Course Work · Total</div>
+          </label>
+          <label class="bylaw-option" for="bylawOnline">
+            <input type="radio" name="bylaw" id="bylawOnline" value="online">
+            <div class="bylaw-badge">ONLINE</div>
+            <div class="bylaw-title">Online</div>
+            <div class="bylaw-desc">Microsoft Forms — Email &amp; Total Points</div>
+            <div class="bylaw-header">Reads "Email" &amp; "Total points" · Auto-appends @horus.edu.eg if missing</div>
+          </label>
+        </div>
+      </div>
+
+      <p class="section-label">Step 3 — Settings</p>
+      <div class="card" style="padding:20px;">
+        <p style="font-size:13px;font-weight:500;margin-bottom:8px;">Email domain</p>
+        <div class="domain-row" style="margin-bottom:18px;">
+          <span class="domain-prefix">Student Code</span>
+          <input type="text" id="conv-domain" value="@horus.edu.eg" placeholder="@yourdomain.com">
+        </div>
+        <p style="font-size:13px;font-weight:500;margin-bottom:10px;">Columns to export</p>
+        <div class="config-grid" id="col-config"></div>
+      </div>
+
+      <p class="section-label">Step 4 — Convert</p>
+      <div class="card" style="padding:20px;">
+        <button class="primary-btn btn-blue" id="conv-btn" disabled onclick="runConvert()">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/></svg>
+          Convert &amp; Generate Files
+        </button>
+        <div class="log-line" id="conv-log"></div>
+      </div>
+
+      <div id="results-conv">
+        <p class="section-label">Results</p>
+        <div class="card" style="padding:20px;">
+          <div class="summary-bar" id="conv-summary"></div>
+          <div class="results-header">
+            <h3>Generated files</h3>
+            <button class="download-all-btn" onclick="downloadAll()">Download all</button>
+          </div>
+          <div id="conv-dl-list"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ══════════════════ CHECKER PAGE ══════════════════ -->
+  <div class="page" id="page-check">
+    <main>
+      <p class="section-label">Step 1 — Upload Files</p>
+      <div class="card" style="padding:20px;">
+        <div class="upload-grid">
+          <div>
+            <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">Original Grades Sheet</div>
+            <div class="drop-zone" id="chk-input-zone" onclick="document.getElementById('chk-input-file').click()">
+              <input type="file" id="chk-input-file" accept=".xlsx,.xls">
+              <div class="drop-icon">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </div>
+              <h2>Drop input .xlsx</h2>
+              <p>The original grades file, or a raw Microsoft Forms (Online) export</p>
+              <div class="loaded-name" id="chk-input-name"></div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">Converted Output Files</div>
+            <div class="drop-zone" id="chk-output-zone" onclick="document.getElementById('chk-output-file').click()" style="padding:24px 16px;">
+              <input type="file" id="chk-output-file" accept=".xlsx,.xls" multiple>
+              <div class="drop-icon">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              </div>
+              <h2>Drop output .xlsx files</h2>
+              <p>One or more converted files</p>
+            </div>
+            <div class="out-files-list" id="chk-out-list"></div>
+            <button class="add-more-btn" id="chk-add-more" style="display:none;" onclick="document.getElementById('chk-output-file').click()">+ Add more output files</button>
+          </div>
+        </div>
+      </div>
+
+      <p class="section-label">Step 2 — Settings</p>
+      <div class="card" style="padding:20px;">
+        <p style="font-size:13px;font-weight:500;margin-bottom:10px;">Output file type</p>
+        <div class="mode-pick">
+          <label class="mode-card selected" id="mode-std-label" for="mode-std">
+            <input type="radio" name="chk-mode" id="mode-std" value="standard" checked>
+            <div><div class="mc-title">Standard</div><div class="mc-sub">Midterm / Final Term / Class Work ...</div></div>
+          </label>
+          <label class="mode-card" id="mode-onl-label" for="mode-onl">
+            <input type="radio" name="chk-mode" id="mode-onl" value="online">
+            <div><div class="mc-title">Online</div><div class="mc-sub">Microsoft Forms — Email &amp; Total points</div></div>
+          </label>
+        </div>
+        <div id="online-col-setting" style="display:none;margin-bottom:16px;padding:14px;background:var(--accent-bg);border:1px solid #BDD0FF;border-radius:var(--radius-sm);">
+          <label style="font-size:13px;font-weight:500;display:block;margin-bottom:8px;">Which input column to compare against?</label>
+          <select id="online-col-select" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px;font-family:var(--sans);background:var(--surface);color:var(--text);outline:none;">
+            <option value="total points">Total Points (Online export)</option>
+            <option value="midterm">Midterm</option>
+            <option value="final term">Final Term</option>
+            <option value="class work">Class Work</option>
+            <option value="note">Note</option>
+            <option value="exp. / oral">Exp. / Oral</option>
+            <option value="quiz">Quiz</option>
+            <option value="activity">Activity</option>
+            <option value="oral">Oral</option>
+            <option value="course work">Course Work</option>
+            <option value="total">Total</option>
+          </select>
+          <p style="font-size:11px;color:var(--text3);margin-top:6px;"><strong>Total points</strong> from the online output file will be compared against this column. If the "Original Grades Sheet" is itself a raw Microsoft Forms export, choose <strong>Total Points (Online export)</strong>.</p>
+        </div>
+        <label style="font-size:13px;font-weight:500;display:block;margin-bottom:8px;">Email domain used in output files</label>
+        <div class="domain-row">
+          <div class="domain-prefix">studentID</div>
+          <input type="text" id="chk-domain" value="@horus.edu.eg" placeholder="@horus.edu.eg" spellcheck="false">
+        </div>
+        <p style="font-size:11px;color:var(--text3);margin-top:6px;">Used to extract student IDs from the Email column.</p>
+      </div>
+
+      <p class="section-label">Step 3 — Run Check</p>
+      <div class="card" style="padding:20px;">
+        <button class="primary-btn btn-purple" id="chk-btn" onclick="runCheck()" disabled>
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Compare Files
+        </button>
+        <div class="log-line" id="chk-log"></div>
+      </div>
+
+      <div id="results-check">
+        <p class="section-label">Results</p>
+        <div class="summary-bar" id="chk-summary"></div>
+        <div id="chk-reports"></div>
+      </div>
+    </main>
+  </div>
+</div><!-- /app -->
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// SPLASH
+// ══════════════════════════════════════════════════════════════
+(function(){
+  const bar = document.getElementById('splash-bar');
+  let w = 0;
+  const iv = setInterval(() => {
+    w += (w < 70 ? 2.5 : w < 90 ? 0.6 : 0.15);
+    bar.style.width = Math.min(w, 99) + '%';
+  }, 40);
+  window.addEventListener('load', () => {
+    clearInterval(iv);
+    bar.style.width = '100%';
+    setTimeout(() => {
+      document.getElementById('splash').classList.add('hidden');
+      document.getElementById('app').classList.add('visible');
+    }, 3000);
+  });
+})();
+
+// ══════════════════════════════════════════════════════════════
+// TAB NAVIGATION
+// ══════════════════════════════════════════════════════════════
+document.querySelectorAll('.nav-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('page-' + tab.dataset.page).classList.add('active');
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// SHARED HELPERS
+// ══════════════════════════════════════════════════════════════
+function cleanNum(v){ const s=String(v).trim(); return s.endsWith('.0')?s.slice(0,-2):s; }
+function sanitizeId(n){ return n.replace(/[^a-zA-Z0-9]/g,'_'); }
+function numEq(a,b){
+  const na=parseFloat(String(a).trim()), nb=parseFloat(String(b).trim());
+  if(!isNaN(na)&&!isNaN(nb)) return Math.abs(na-nb)<0.001;
+  return String(a).trim().toLowerCase()===String(b).trim().toLowerCase();
+}
+function triggerDownload(blob, name){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function findHeaderRow(data, keyword='code'){
+  for(let r=0;r<=Math.min(data.length-1,10);r++)
+    for(let c=0;c<(data[r]||[]).length;c++)
+      if(String(data[r][c]||'').trim().toLowerCase()===keyword) return r;
+  return 0;
+}
+
+// ══════════════════════════════════════════════════════════════
+// CONVERTER
+// ══════════════════════════════════════════════════════════════
+const BYLAWS={
+  '2025':{ cols:['Midterm','Final Term','Class Work','Exp. / Oral','Note'], isOnline:false },
+  '2018':{ cols:['Quiz','Midterm','Final Term','Activity','Oral','Course Work','Note'], isOnline:false },
+  'online':{ cols:['Total points'], isOnline:true }
+};
+const OUT_HEADERS=['ID','Start time','Completion time','Email','Name','Total points','Quiz feedback','Question','Points - Question','Feedback - Question'];
+
+let convFile=null, generatedFiles=[];
+
+function buildColConfig(bylaw){
+  const el=document.getElementById('col-config'); el.innerHTML='';
+  if(BYLAWS[bylaw].isOnline){
+    el.innerHTML=`<div style="grid-column:1/-1;font-size:13px;color:var(--text2);padding:6px 0;">
+      Online mode reads <strong>Email</strong> and <strong>Total points</strong> from Microsoft Forms exports.
+      Domain <code style="font-family:var(--mono)">@horus.edu.eg</code> is added automatically if missing.</div>`;
+    return;
+  }
+  BYLAWS[bylaw].cols.forEach(col=>{
+    const id='chk_'+col.replace(/[\s\/\.]/g,'_');
+    const lbl=document.createElement('label');
+    lbl.className='config-item'; lbl.setAttribute('for',id);
+    lbl.innerHTML=`<input type="checkbox" id="${id}" data-col="${col}" checked>
+      <div><div class="col-name">${col}</div><div class="col-sub">${col.toLowerCase().replace(/ /g,'_')}.xlsx</div></div>`;
+    el.appendChild(lbl);
+  });
+}
+document.querySelectorAll('.bylaw-option').forEach(opt=>{
+  opt.addEventListener('click',()=>{
+    document.querySelectorAll('.bylaw-option').forEach(o=>o.classList.remove('selected'));
+    opt.classList.add('selected');
+    buildColConfig(opt.querySelector('input[type=radio]').value);
+  });
+});
+buildColConfig('2025');
+
+const convDrop=document.getElementById('conv-drop');
+const convInput=document.getElementById('conv-file');
+convDrop.addEventListener('dragover',e=>{e.preventDefault();convDrop.classList.add('over');});
+convDrop.addEventListener('dragleave',()=>convDrop.classList.remove('over'));
+convDrop.addEventListener('drop',e=>{e.preventDefault();convDrop.classList.remove('over');convHandleFile(e.dataTransfer.files[0]);});
+convInput.addEventListener('change',()=>convHandleFile(convInput.files[0]));
+
+function convHandleFile(f){
+  if(!f) return; convFile=f;
+  document.getElementById('conv-file-name').textContent=f.name;
+  document.getElementById('conv-pill').classList.add('show');
+  document.getElementById('conv-btn').disabled=false;
+  document.getElementById('results-conv').style.display='none';
+  document.getElementById('conv-dl-list').innerHTML='';
+  convLog('');
+}
+function convClearFile(){
+  convFile=null; convInput.value='';
+  document.getElementById('conv-file-name').textContent='—';
+  document.getElementById('conv-pill').classList.remove('show');
+  document.getElementById('conv-btn').disabled=true;
+  document.getElementById('results-conv').style.display='none';
+  convLog('');
+}
+function convLog(msg,err){ const el=document.getElementById('conv-log'); el.textContent=msg; el.className='log-line'+(err?' error':''); }
+
+function runConvert() {
+  if (!convFile) return;
+
+  convLog('Reading file…');
+  generatedFiles = [];
+
+  const reader = new FileReader();
+
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+      const selectedBylaw = document.querySelector('input[name="bylaw"]:checked').value;
+      const isOnline = !!BYLAWS[selectedBylaw].isOnline;
+      const domain = document.getElementById('conv-domain').value.trim() || '@horus.edu.eg';
+
+      const hRow = findHeaderRow(data, isOnline ? 'email' : 'code');
+      const headers = data[hRow].map(h => String(h).trim());
+      const rows = data.slice(hRow + 1);
+
+      const dlList = document.getElementById('conv-dl-list');
+      dlList.innerHTML = '';
+
+      let totalStudents = 0;
+      let skipped = 0;
+
+      // =====================================================
+      // ONLINE MODE
+      // =====================================================
+      if (isOnline) {
+
+        const emailIdx = headers.findIndex(h => h.toLowerCase() === 'email');
+        const pointsIdx = headers.findIndex(h => h.toLowerCase() === 'total points');
+
+        if (emailIdx === -1) {
+          convLog("Could not find 'Email' column.", true);
+          return;
+        }
+
+        if (pointsIdx === -1) {
+          convLog("Could not find 'Total points' column.", true);
+          return;
+        }
+
+        const valid = rows.filter(r =>
+          String(r[emailIdx] || '').trim() !== ''
+        );
+
+        if (!valid.length) {
+          convLog('No valid rows found.', true);
+          return;
+        }
+
+        const outData = [OUT_HEADERS];
+
+        valid.forEach(r => {
+
+          let email = String(r[emailIdx] || '').trim();
+
+          if (!email.includes('@')) {
+            email += domain;
+          }
+
+          const raw = String(r[pointsIdx] ?? '').trim().replace(/\.0$/, '');
+
+          const total =
+            raw === ''
+              ? ''
+              : (!isNaN(raw) ? Number(raw) : raw);
+
+          outData.push([
+            '',
+            '',
+            '',
+            email,
+            email.split('@')[0],
+            total,
+            '',
+            '',
+            '',
+            ''
+          ]);
+        });
+
+        pushOutputFile(
+          'online_grades.xlsx',
+          'Online',
+          outData,
+          valid.length,
+          dlList
+        );
+
+        totalStudents = valid.length;
+
+      }
+
+      // =====================================================
+      // STANDARD MODE
+      // =====================================================
+      else {
+
+        const codeIdx = headers.findIndex(
+          h => h.toLowerCase() === 'code'
+        );
+
+        const nameIdx = headers.findIndex(
+          h =>
+            h.toLowerCase().includes('student') ||
+            h.toLowerCase().includes('name')
+        );
+
+        if (codeIdx === -1) {
+          convLog("Could not find 'Code' column.", true);
+          return;
+        }
+
+        const selected = [
+          ...document.querySelectorAll('#col-config input:checked')
+        ].map(i => i.dataset.col);
+
+        selected.forEach(colName => {
+
+          const colIdx = headers.findIndex(
+            h => h.toLowerCase() === colName.toLowerCase()
+          );
+
+          if (colIdx === -1) {
+            skipped++;
+            return;
+          }
+
+          // Skip ONLY if entire column is empty
+          const hasAnyData = rows.some(r => {
+            const val = String(r[colIdx] ?? '').trim();
+            return val !== '' && val.toLowerCase() !== 'nan';
+          });
+
+          if (!hasAnyData) {
+            skipped++;
+            return;
+          }
+
+          // Include ALL students with valid codes
+          const students = rows.filter(r => {
+            const code = String(r[codeIdx] || '')
+              .trim()
+              .replace(/\.0$/, '');
+
+            return /^\d+$/.test(code);
+          });
+
+          if (!students.length) {
+            skipped++;
+            return;
+          }
+
+          const outData = [OUT_HEADERS];
+
+          students.forEach(r => {
+
+            const code = cleanNum(String(r[codeIdx] || ''));
+
+            const raw = String(r[colIdx] ?? '')
+              .trim()
+              .replace(/\.0$/, '');
+
+            const total =
+              raw === ''
+                ? ''
+                : (!isNaN(raw) ? Number(raw) : raw);
+
+            const name =
+              nameIdx !== -1
+                ? String(r[nameIdx] || '').trim()
+                : '';
+
+            outData.push([
+              '',
+              '',
+              '',
+              code + domain,
+              name,
+              total,
+              '',
+              '',
+              '',
+              ''
+            ]);
+          });
+
+          const fileName = colName
+            .replace(/[\/\\:*?"<>|]/g, '_')
+            .replace(/\s+/g, '_') + '.xlsx';
+
+          pushOutputFile(
+            fileName,
+            colName,
+            outData,
+            students.length,
+            dlList
+          );
+
+          totalStudents += students.length;
+        });
+      }
+
+      dlList.querySelectorAll('.dl-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const f = generatedFiles[+btn.dataset.idx];
+          triggerDownload(f.blob, f.name);
+        });
+      });
+
+      const sb = document.getElementById('conv-summary');
+
+      sb.innerHTML = `
+        <div class="summary-chip chip-success">
+          &#10003; ${generatedFiles.length} file${generatedFiles.length !== 1 ? 's' : ''} generated
+        </div>
+
+        <div class="summary-chip chip-success">
+          ${totalStudents} student rows
+        </div>
+
+        ${
+          skipped
+            ? `<div class="summary-chip chip-warn">
+                 &#9888; ${skipped} column${skipped !== 1 ? 's' : ''} skipped
+               </div>`
+            : ''
+        }
+      `;
+
+      convLog('');
+
+      document.getElementById('results-conv').style.display = 'block';
+
+      document
+        .getElementById('results-conv')
+        .scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+
+    } catch (err) {
+      convLog('Error: ' + err.message, true);
+      console.error(err);
+    }
+  };
+
+  reader.readAsArrayBuffer(convFile);
+}
+function pushOutputFile(fileName,sheetName,outData,count,dlList){
+  const outWb=XLSX.utils.book_new();
+  const outWs=XLSX.utils.aoa_to_sheet(outData);
+  outWs['!cols']=[8,16,16,30,26,12,14,12,16,18].map(w=>({wch:w}));
+  const safe=sheetName.replace(/[:\\\/\?*\[\]]/g,'_').substring(0,31);
+  XLSX.utils.book_append_sheet(outWb,outWs,safe);
+  const buf=XLSX.write(outWb,{bookType:'xlsx',type:'array'});
+  const blob=new Blob([buf],{type:'application/octet-stream'});
+  generatedFiles.push({name:fileName,blob});
+  const rowEl=document.createElement('div'); rowEl.className='result-row';
+  rowEl.innerHTML=`<div class="result-icon"><svg width="15" height="15" fill="none" stroke="#166534" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+    <span class="result-name">${fileName}</span>
+    <span class="result-count">${count} students</span>
+    <button class="dl-btn" data-idx="${generatedFiles.length-1}">Download</button>`;
+  dlList.appendChild(rowEl);
+}
+
+function downloadAll(){ generatedFiles.forEach((f,i)=>setTimeout(()=>triggerDownload(f.blob,f.name),i*300)); }
+
+// ══════════════════════════════════════════════════════════════
+// CHECKER
+// ══════════════════════════════════════════════════════════════
+let chkInputData=null, chkOutputFiles=[];
+const ACCEPTED_CODE_HEADERS=['code','id','student id','student_id','seat no','seat number','national id'];
+
+function chkLog(msg,err){ const el=document.getElementById('chk-log'); el.textContent=msg; el.className='log-line'+(err?' error':''); }
+function updateChkBtn(){ document.getElementById('chk-btn').disabled=!(chkInputData&&chkOutputFiles.length>0); }
+
+document.getElementById('chk-input-file').addEventListener('change',e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const wb=XLSX.read(ev.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      const hRow=findHeaderRow(raw,'code');
+      const headers=raw[hRow].map(h=>String(h).trim());
+      const lcHeaders=headers.map(h=>h.toLowerCase());
+      const emailIdx=lcHeaders.indexOf('email');
+      const pointsIdx=lcHeaders.indexOf('total points');
+      // "Online" / Microsoft Forms raw export used directly as the input file:
+      // identify students by their Email column instead of a Code/ID column.
+      const isFormsInput=emailIdx!==-1&&pointsIdx!==-1;
+      const codeIdx=headers.findIndex(h=>ACCEPTED_CODE_HEADERS.includes(h.toLowerCase()));
+      const nameIdx=headers.findIndex(h=>h.toLowerCase().includes('student')||h.toLowerCase()==='student name');
+      if(!isFormsInput&&codeIdx===-1){chkLog("Could not find 'Code' column in input file.",true);return;}
+      const rows=isFormsInput
+        ?raw.slice(hRow+1).filter(r=>String(r[emailIdx]||'').includes('@'))
+        :raw.slice(hRow+1).filter(r=>/^\d+$/.test(String(r[codeIdx]||'').trim().replace(/\.0$/,'')));
+      chkInputData={headers,rows,codeIdx,nameIdx,emailIdx,isFormsInput};
+      document.getElementById('chk-input-zone').classList.add('loaded');
+      document.getElementById('chk-input-name').textContent=file.name;
+      updateChkBtn();
+    } catch(err){chkLog('Error reading input: '+err.message,true);}
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+document.getElementById('chk-output-file').addEventListener('change',e=>{
+  [...e.target.files].forEach(f=>{
+    const r=new FileReader();
+    r.onload=ev=>{chkOutputFiles.push({name:f.name,data:ev.target.result});renderChkOutList();updateChkBtn();};
+    r.readAsArrayBuffer(f);
+  });
+  e.target.value='';
+});
+
+function renderChkOutList(){
+  const list=document.getElementById('chk-out-list'); list.innerHTML='';
+  chkOutputFiles.forEach((f,i)=>{
+    const row=document.createElement('div'); row.className='out-file-row';
+    row.innerHTML=`<svg width="13" height="13" fill="none" stroke="#166534" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <span>${f.name}</span><button onclick="removeChkOut(${i})">&#x2715;</button>`;
+    list.appendChild(row);
+  });
+  document.getElementById('chk-add-more').style.display=chkOutputFiles.length>0?'block':'none';
+  document.getElementById('chk-output-zone').style.display=chkOutputFiles.length>0?'none':'flex';
+}
+function removeChkOut(i){ chkOutputFiles.splice(i,1); renderChkOutList(); updateChkBtn(); }
+
+// Drag-drop for checker zones
+['chk-input-zone','chk-output-zone'].forEach(id=>{
+  const el=document.getElementById(id);
+  el.addEventListener('dragover',e=>{e.preventDefault();el.classList.add('over');});
+  el.addEventListener('dragleave',()=>el.classList.remove('over'));
+  el.addEventListener('drop',e=>{
+    e.preventDefault();el.classList.remove('over');
+    const files=[...e.dataTransfer.files].filter(f=>f.name.match(/\.xlsx?$/i));
+    if(!files.length) return;
+    if(id==='chk-input-zone'){
+      document.getElementById('chk-input-file').files=e.dataTransfer.files;
+      document.getElementById('chk-input-file').dispatchEvent(new Event('change'));
+    } else {
+      files.forEach(f=>{const r=new FileReader();r.onload=ev=>{chkOutputFiles.push({name:f.name,data:ev.target.result});renderChkOutList();updateChkBtn();};r.readAsArrayBuffer(f);});
+    }
+  });
+});
+
+// Mode toggle
+document.querySelectorAll('input[name="chk-mode"]').forEach(radio=>{
+  radio.addEventListener('change',()=>{
+    const isOnl=document.getElementById('mode-onl').checked;
+    document.getElementById('mode-std-label').classList.toggle('selected',!isOnl);
+    document.getElementById('mode-onl-label').classList.toggle('selected',isOnl);
+    document.getElementById('online-col-setting').style.display=isOnl?'block':'none';
+  });
+});
+
+function normalizeKey(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
+function findBestMatch(scores,colGuess){
+  const key=colGuess.toLowerCase();
+  if(scores[key]!==undefined) return scores[key];
+  const ng=normalizeKey(colGuess);
+  const m=Object.keys(scores).find(k=>normalizeKey(k)===ng);
+  if(m) return scores[m];
+  const p=Object.keys(scores).find(k=>{const nk=normalizeKey(k);return nk.includes(ng)||ng.includes(nk);});
+  return p?scores[p]:null;
+}
+
+function runCheck(){
+  if(!chkInputData||!chkOutputFiles.length) return;
+  chkLog('Analysing…');
+  document.getElementById('results-check').style.display='none';
+  const domain=document.getElementById('chk-domain').value.trim()||'@horus.edu.eg';
+  const isOnline=document.getElementById('mode-onl').checked;
+  const onlineCol=isOnline?document.getElementById('online-col-select').value:null;
+  const {headers,rows,codeIdx,nameIdx,emailIdx,isFormsInput}=chkInputData;
+
+  const inputMap={};
+  rows.forEach(row=>{
+    let code;
+    if(isFormsInput){
+      const email=String(row[emailIdx]||'').trim();
+      code=cleanNum(email.replace(domain,'')).trim();
+    } else {
+      code=cleanNum(String(row[codeIdx]||'')).trim();
+    }
+    if(!code) return;
+    const entry={name:nameIdx>=0?String(row[nameIdx]||'').trim():(isFormsInput?String(row[emailIdx]||'').trim():''),scores:{}};
+    headers.forEach((h,i)=>{if(h) entry.scores[h.toLowerCase()]=String(row[i]||'').trim().replace(/\.0$/,'');});
+    inputMap[code]=entry;
+  });
+
+  const allReports=[];
+  let gMatch=0,gDiff=0,gMiss=0,gExtra=0;
+
+  chkOutputFiles.forEach(outFile=>{
+    const wb=XLSX.read(outFile.data,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const outRaw=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    let outHRow=0;
+    for(let r=0;r<Math.min(outRaw.length,5);r++)
+      if((outRaw[r]||[]).some(c=>String(c).toLowerCase().trim()==='email')){outHRow=r;break;}
+    const outHeaders=(outRaw[outHRow]||[]).map(h=>String(h).trim().toLowerCase());
+    const emailIdx=outHeaders.findIndex(h=>h==='email');
+    const pointsIdx=outHeaders.findIndex(h=>h.includes('total points')||h==='total points');
+    const outRows=outRaw.slice(outHRow+1).filter(r=>String(r[emailIdx]||'').includes('@'));
+    const colGuess=isOnline?onlineCol:outFile.name.replace(/\.xlsx?$/i,'').trim();
+    const rpt=[]; const outCodes=new Set();
+
+    outRows.forEach(row=>{
+      const email=String(row[emailIdx]||'').trim();
+      const code=email.replace(domain,'').trim();
+      const outVal=pointsIdx>=0?cleanNum(String(row[pointsIdx]||'')).trim():'—';
+      outCodes.add(code);
+      if(!inputMap[code]){rpt.push({code,name:'—',inVal:null,outVal,status:'extra'});gExtra++;return;}
+      const inVal=findBestMatch(inputMap[code].scores,colGuess);
+      if(inVal===null){rpt.push({code,name:inputMap[code].name,inVal:'col not found',outVal,status:'warn'});}
+      else if(numEq(inVal,outVal)){rpt.push({code,name:inputMap[code].name,inVal,outVal,status:'match'});gMatch++;}
+      else{rpt.push({code,name:inputMap[code].name,inVal,outVal,status:'diff'});gDiff++;}
+    });
+    Object.keys(inputMap).forEach(code=>{
+      const inVal=findBestMatch(inputMap[code].scores,colGuess);
+      if(inVal&&inVal!==''&&inVal!=='0'&&!outCodes.has(code)){
+        rpt.push({code,name:inputMap[code].name,inVal,outVal:null,status:'missing'});gMiss++;
+      }
+    });
+    rpt.sort((a,b)=>({diff:0,missing:1,extra:2,warn:3,match:4}[a.status]??5)-({diff:0,missing:1,extra:2,warn:3,match:4}[b.status]??5)||a.code.localeCompare(b.code));
+    allReports.push({fileName:outFile.name,colGuess,rows:rpt});
+  });
+
+  renderCheckResults(allReports,gMatch,gDiff,gMiss,gExtra);
+  chkLog('');
+}
+
+function renderCheckResults(reports,gMatch,gDiff,gMiss,gExtra){
+  document.getElementById('chk-summary').innerHTML=`
+    <div class="summary-chip chip-accent">&#9632; ${reports.length} file${reports.length!==1?'s':''} checked</div>
+    <div class="summary-chip chip-success">&#10003; ${gMatch} matching</div>
+    ${gDiff?`<div class="summary-chip chip-danger">&#9888; ${gDiff} value diff</div>`:''}
+    ${gMiss?`<div class="summary-chip chip-warn">&#9679; ${gMiss} missing in output</div>`:''}
+    ${gExtra?`<div class="summary-chip chip-accent">+ ${gExtra} extra in output</div>`:''}`;
+
+  const reportsEl=document.getElementById('chk-reports'); reportsEl.innerHTML='';
+  reports.forEach(report=>{
+    const hasDiff=report.rows.some(r=>r.status==='diff');
+    const hasMiss=report.rows.some(r=>r.status==='missing');
+    const hasExtra=report.rows.some(r=>r.status==='extra');
+    const allOk=!hasDiff&&!hasMiss&&!hasExtra;
+    const statusPill=allOk?`<span class="status-pill pill-ok">✓ All match</span>`
+      :`<span class="status-pill pill-issues">${[hasDiff?'Values differ':'',hasMiss?'Missing students':'',hasExtra?'Extra students':''].filter(Boolean).join(' · ')}</span>`;
+    const mc=report.rows.filter(r=>r.status==='match').length;
+    const dc=report.rows.filter(r=>r.status==='diff').length;
+    const mic=report.rows.filter(r=>r.status==='missing').length;
+    const ec=report.rows.filter(r=>r.status==='extra').length;
+    const block=document.createElement('div'); block.className='report-block card'; block.style.padding='20px';
+    block.innerHTML=`
+      <div class="report-title"><span class="file-badge">xlsx</span><h3>${report.fileName}</h3>${statusPill}</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:14px;">
+        Column: <strong style="color:var(--text)">${report.colGuess}</strong> &nbsp;·&nbsp; ${report.rows.length} students
+        &nbsp;·&nbsp; <span style="color:var(--success)">${mc} match</span>
+        ${dc?`&nbsp;·&nbsp; <span style="color:var(--danger)">${dc} diff</span>`:''}
+        ${mic?`&nbsp;·&nbsp; <span style="color:var(--warn)">${mic} missing</span>`:''}
+        ${ec?`&nbsp;·&nbsp; <span style="color:var(--accent-text)">${ec} extra</span>`:''}
+      </div>
+      <div class="filter-bar" data-target="tbl-${sanitizeId(report.fileName)}">
+        <span style="font-size:12px;color:var(--text2);align-self:center;">Show:</span>
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="diff">Diff</button>
+        <button class="filter-btn" data-filter="missing">Missing</button>
+        <button class="filter-btn" data-filter="extra">Extra</button>
+        <button class="filter-btn" data-filter="match">Match</button>
+        <button class="export-btn" onclick="exportReport('${sanitizeId(report.fileName)}','${report.fileName.replace(/\.xlsx?$/i,'')}_check.xlsx')">Export</button>
+      </div>
+      <div class="table-wrap">
+        <table id="tbl-${sanitizeId(report.fileName)}">
+          <thead><tr><th>Status</th><th>Student Code</th><th>Name</th><th>Input Value</th><th>Output Value</th><th>Diff</th></tr></thead>
+          <tbody>${report.rows.length===0?`<tr><td colspan="6" class="empty-state">No data</td></tr>`:
+            report.rows.map(r=>{
+              const diff=(r.inVal!==null&&r.outVal!==null&&r.status==='diff')?
+                `<span style="color:var(--danger);font-family:var(--mono);font-size:12px;">${parseFloat(r.outVal)-parseFloat(r.inVal)||'—'}</span>`:'—';
+              return `<tr data-status="${r.status}">
+                <td>${badgeHtml(r.status)}</td>
+                <td class="td-code">${r.code}</td>
+                <td style="font-size:13px;direction:rtl;text-align:right;">${r.name||'—'}</td>
+                <td class="td-val ${r.inVal===null?'val-missing':''}">${r.inVal??'<em>—</em>'}</td>
+                <td class="td-val ${r.outVal===null?'val-missing':''}">${r.outVal??'<em>—</em>'}</td>
+                <td>${diff}</td></tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    reportsEl.appendChild(block);
+  });
+
+  document.querySelectorAll('.filter-bar').forEach(bar=>{
+    bar.querySelectorAll('.filter-btn').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        bar.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        const filter=btn.dataset.filter, tblId=bar.dataset.target;
+        document.querySelectorAll(`#${tblId} tbody tr`).forEach(tr=>{
+          tr.style.display=(filter==='all'||tr.dataset.status===filter)?'':'none';
+        });
+      });
+    });
+  });
+
+  document.getElementById('results-check').style.display='block';
+  document.getElementById('results-check').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function badgeHtml(status){
+  const map={match:['badge-match','✓ Match'],diff:['badge-diff','✗ Diff'],missing:['badge-missing','⚠ Missing'],extra:['badge-extra','+ Extra'],warn:['badge-missing','? Unknown']};
+  const [cls,lbl]=map[status]||['badge-missing',status];
+  return `<span class="${cls}">${lbl}</span>`;
+}
+function exportReport(tblId,fileName){
+  const t=document.getElementById('tbl-'+tblId); if(!t) return;
+  XLSX.writeFile(XLSX.utils.table_to_book(t),fileName);
+}
+</script>
+</body>
+</html>
