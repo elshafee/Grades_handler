@@ -199,7 +199,7 @@ This project is licensed under the **Apache License 2.0**. See the LICENSE file 
 
 ## 👥 Credits
 
-**Developed by**: ESSIC  
+**Developed by**: Ahmad K. Elshafee @ ESSIC  
 **Institution**: Horus University  
 **Version**: 1.0.0
 
